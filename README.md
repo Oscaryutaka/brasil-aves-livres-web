@@ -1,0 +1,52 @@
+# Brasil Aves Livres Web
+
+MVP para buscar aves, selecionar URLs do WikiAves e gerar PDFs A4 com QR Codes no navegador.
+O PDF usa fundo branco e grade fixa de 4 linhas por 3 colunas.
+
+## Rodar localmente
+
+```bash
+npm install
+npm run dev
+```
+
+No PowerShell com execucao de scripts bloqueada, use:
+
+```powershell
+npm.cmd install
+npm.cmd run dev
+```
+
+## Base de aves
+
+A base inicial fica em:
+
+```text
+src/data/aves.json
+```
+
+Cada ave usa este formato:
+
+```json
+{
+  "id": "curicaca",
+  "nomePopular": "Curicaca",
+  "nomeCientifico": "Theristicus caudatus",
+  "url": "https://www.wikiaves.com.br/wiki/curicaca",
+  "tags": ["campo", "cerrado"],
+  "atualizadoEm": "2026-05-05"
+}
+```
+
+## Publicacao gratuita
+
+O projeto pode ser publicado como site estatico em Vercel, Netlify ou GitHub Pages.
+O MVP nao depende de API oficial do WikiAves nem de backend.
+
+## Proximas melhorias
+
+- Importar CSV exportado do banco local.
+- Salvar modelos de layout, caso a grade fixa deixe de ser suficiente.
+- Criar editor visual de paginas.
+- Permitir upload de lista temporaria pelo usuario.
+- Criar uma funcao serverless opcional para consulta assistida ao WikiAves, caso os termos de uso e a estabilidade tecnica permitam.

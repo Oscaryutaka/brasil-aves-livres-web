@@ -1,0 +1,69 @@
+[
+  {
+    "id": "curicaca",
+    "nomePopular": "Curicaca",
+    "nomeCientifico": "Theristicus caudatus",
+    "url": "https://www.wikiaves.com.br/wiki/curicaca",
+    "tags": [
+      "ibis",
+      "campo",
+      "cerrado"
+    ],
+    "atualizadoEm": "2026-05-05"
+  },
+  {
+    "id": "joao-de-barro",
+    "nomePopular": "João-de-barro",
+    "nomeCientifico": "Furnarius rufus",
+    "url": "https://www.wikiaves.com.br/wiki/joao-de-barro",
+    "tags": [
+      "forneiro",
+      "urbano"
+    ],
+    "atualizadoEm": "2026-05-05"
+  },
+  {
+    "id": "bem-te-vi",
+    "nomePopular": "Bem-te-vi",
+    "nomeCientifico": "Pitangus sulphuratus",
+    "url": "https://www.wikiaves.com.br/wiki/bem-te-vi",
+    "tags": [
+      "urbano",
+      "tirano"
+    ],
+    "atualizadoEm": "2026-05-05"
+  },
+  {
+    "id": "tucano-toco",
+    "nomePopular": "Tucano-toco",
+    "nomeCientifico": "Ramphastos toco",
+    "url": "https://www.wikiaves.com.br/wiki/tucano-toco",
+    "tags": [
+      "tucano",
+      "cerrado"
+    ],
+    "atualizadoEm": "2026-05-05"
+  },
+  {
+    "id": "arara-caninde",
+    "nomePopular": "Arara-canindé",
+    "nomeCientifico": "Ara ararauna",
+    "url": "https://www.wikiaves.com.br/wiki/arara-caninde",
+    "tags": [
+      "arara",
+      "psitacideo"
+    ],
+    "atualizadoEm": "2026-05-05"
+  },
+  {
+    "id": "sabia-laranjeira",
+    "nomePopular": "Sabiá-laranjeira",
+    "nomeCientifico": "Turdus rufiventris",
+    "url": "https://www.wikiaves.com.br/wiki/sabia-laranjeira",
+    "tags": [
+      "sabia",
+      "canto"
+    ],
+    "atualizadoEm": "2026-05-05"
+  }
+]
