@@ -63,7 +63,7 @@ function App() {
 
   const filteredBirds = useMemo(() => {
     const term = normalizeSearch(query);
-    if (!term) return catalog;
+    if (!term) return birdCatalog;
 
     return catalog.filter((bird) => {
       const haystack = normalizeSearch(
@@ -157,9 +157,18 @@ function App() {
     setItems((current) => current.filter((item) => item.instanceId !== instanceId));
   }
 
-  function updateCopies(instanceId: string, copies: number) {
+  function updateCopies(instanceId: string, rawValue: string) {
+    const sanitized = rawValue.replace(/\D/g, '');
+    const copies = sanitized ? Number(sanitized) : 0;
+
     setItems((current) =>
-      current.map((item) => (item.instanceId === instanceId ? { ...item, copies: Math.max(1, copies) } : item)),
+      current.map((item) => (item.instanceId === instanceId ? { ...item, copies } : item)),
+    );
+  }
+
+  function normalizeCopies(instanceId: string) {
+    setItems((current) =>
+      current.map((item) => (item.instanceId === instanceId ? { ...item, copies: Math.max(1, item.copies) } : item)),
     );
   }
 
@@ -186,7 +195,7 @@ function App() {
         <div className="topbar-stats" aria-label="Resumo da montagem">
           <span>{catalog.length} aves</span>
           <span>{items.length} itens</span>
-          <span>{totalCopies} copias</span>
+          <span>{totalCopies} qtde.</span>
         </div>
       </header>
 
@@ -284,12 +293,14 @@ function App() {
                     <small>{bird.url}</small>
                   </div>
                   <label className="copies-control">
-                    <span>Copias</span>
+                    <span>Qtde.</span>
                     <input
-                      type="number"
-                      min="1"
-                      value={item.copies}
-                      onChange={(event) => updateCopies(item.instanceId, Number(event.target.value))}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={item.copies || ''}
+                      onBlur={() => normalizeCopies(item.instanceId)}
+                      onChange={(event) => updateCopies(item.instanceId, event.target.value)}
                     />
                   </label>
                   <div className="row-actions">
