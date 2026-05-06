@@ -214,6 +214,7 @@ function App() {
               placeholder="Ex.: curicaca, sabiá, tucano"
             />
           </label>
+          {message ? <p className="status-message search-status-message">{message}</p> : null}
 
           <div className="result-list">
             {filteredBirds.map((bird) => (
@@ -368,7 +369,6 @@ function App() {
             {isGenerating ? 'Gerando...' : 'Gerar PDF'}
           </button>
 
-          {message ? <p className="status-message">{message}</p> : null}
         </aside>
       </section>
     </main>

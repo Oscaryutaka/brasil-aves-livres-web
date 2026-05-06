@@ -368,6 +368,11 @@ input:focus {
   font-weight: 800;
 }
 
+.search-status-message {
+  margin: -4px 0 12px;
+  line-height: 1.35;
+}
+
 @media (max-width: 1080px) {
   .workspace-grid {
     grid-template-columns: 1fr;
