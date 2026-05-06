@@ -54,7 +54,7 @@ export async function generateBirdPdf(
     addPageNumbers(pdf);
   }
 
-  pdf.save(filenameFromTitle(options.title));
+  pdf.save(filenameFromTimestamp());
 }
 
 function expandItems(catalog: Bird[], items: PrintItem[]): RenderEntry[] {
@@ -171,13 +171,13 @@ function addPageNumbers(pdf: jsPDF) {
   }
 }
 
-function filenameFromTitle(title: string) {
-  const slug = (title || 'brasil-aves-livres')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
+function filenameFromTimestamp() {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const MM = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = String(now.getFullYear());
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
 
-  return `${slug || 'brasil-aves-livres'}-qrcodes.pdf`;
+  return `brasil-aves-livres-qrcodes-${dd}${MM}${yyyy}-${hh}${mm}.pdf`;
 }
