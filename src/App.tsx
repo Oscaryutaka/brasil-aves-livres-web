@@ -63,7 +63,7 @@ function App() {
 
   const filteredBirds = useMemo(() => {
     const term = normalizeSearch(query);
-    if (!term) return birdCatalog;
+    if (!term) return [];
 
     return catalog.filter((bird) => {
       const haystack = normalizeSearch(
