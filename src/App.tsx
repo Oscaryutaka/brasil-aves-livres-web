@@ -25,6 +25,11 @@ const initialOptions: PdfOptions = {
   showPageNumbers: true,
 };
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+};
+
 function App() {
   const [query, setQuery] = useState('');
   const [customBirds, setCustomBirds] = useState<Bird[]>(loadCustomBirds);
@@ -39,6 +44,8 @@ function App() {
   const [wikiSearchValidatedFor, setWikiSearchValidatedFor] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState('');
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(() => window.matchMedia('(display-mode: standalone)').matches);
 
   const catalog = useMemo(
     () => mergeBirdCatalogs(birdCatalog, customBirds, supabaseBirds),
@@ -64,6 +71,26 @@ function App() {
 
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
@@ -229,6 +256,22 @@ function App() {
     }
   }
 
+  async function handleInstallApp() {
+    if (!installPrompt) {
+      setMessage('Use o menu do navegador para instalar este app neste dispositivo.');
+      return;
+    }
+
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    setInstallPrompt(null);
+
+    if (choice.outcome === 'accepted') {
+      setIsInstalled(true);
+      setMessage('App instalado neste dispositivo.');
+    }
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -241,6 +284,11 @@ function App() {
           <span>{catalog.length} aves</span>
           <span>{items.length} itens</span>
           <span>{totalCopies} qtde.</span>
+          {!isInstalled ? (
+            <button className="install-action" type="button" onClick={handleInstallApp}>
+              Instalar app
+            </button>
+          ) : null}
         </div>
       </header>
 

@@ -82,13 +82,20 @@ h2 {
   justify-content: flex-end;
 }
 
-.topbar-stats span {
+.topbar-stats span,
+.install-action {
   border: 1px solid #c5b9a6;
   background: #f8f4eb;
   padding: 8px 10px;
   border-radius: 4px;
   color: #4b4033;
   font-weight: 700;
+}
+
+.install-action {
+  background: #254f45;
+  border-color: #254f45;
+  color: #ffffff;
 }
 
 .workspace-grid {

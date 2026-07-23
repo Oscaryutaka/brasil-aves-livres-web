@@ -1,0 +1,19 @@
+{
+  "name": "Brasil Aves Livres",
+  "short_name": "Aves Livres",
+  "description": "Busque aves do WikiAves e gere PDFs A4 com QR Codes.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ede7dc",
+  "theme_color": "#254f45",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
