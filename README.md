@@ -38,6 +38,34 @@ Cada ave usa este formato:
 }
 ```
 
+## Supabase
+
+O app funciona sem backend, mas pode usar Supabase como catalogo compartilhado.
+
+1. Crie um projeto no Supabase.
+2. Abra o SQL Editor.
+3. Execute o arquivo:
+
+```text
+supabase/schema.sql
+```
+
+4. Opcionalmente, carregue a base inicial executando:
+
+```text
+supabase/seed.sql
+```
+
+5. Copie `.env.example` para `.env.local`.
+6. Preencha:
+
+```text
+VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+VITE_SUPABASE_ANON_KEY=sua-chave-anon-public
+```
+
+No Vercel, configure as mesmas variaveis em Project Settings > Environment Variables.
+
 ## Publicacao gratuita
 
 O projeto pode ser publicado como site estatico em Vercel, Netlify ou GitHub Pages.

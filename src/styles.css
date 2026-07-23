@@ -64,6 +64,13 @@ h1 {
   max-width: 760px;
 }
 
+.catalog-status {
+  margin-top: 12px;
+  color: #5b665f;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 h2 {
   font-size: 1.15rem;
 }

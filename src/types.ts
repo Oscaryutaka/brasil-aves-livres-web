@@ -4,6 +4,9 @@ export type Bird = {
   nomeCientifico?: string;
   url: string;
   tags?: string[];
+  fonte?: 'seed' | 'manual' | 'supabase';
+  validado?: boolean;
+  criadoEm?: string;
   atualizadoEm?: string;
 };
 

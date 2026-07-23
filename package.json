@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.8",
     "@vitejs/plugin-react": "^5.0.0",
     "jspdf": "^4.2.1",
     "qrcode": "^1.5.4",

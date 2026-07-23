@@ -1,9 +1,22 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { birdCatalog } from './data/birds';
+import { mergeBirdCatalogs } from './lib/birds';
+import { loadCustomBirds, saveCustomBirds } from './lib/localBirds';
+import {
+  fetchSupabaseBirds,
+  isSupabaseConfigured,
+  recordSupabasePdf,
+  recordSupabaseSearch,
+  saveSupabaseBird,
+} from './lib/supabaseBirds';
+import {
+  formatPopularName,
+  likelyWikiAvesUrl,
+  normalizeSearch,
+  wikiSlug,
+} from './lib/text';
 import { generateBirdPdf } from './pdf/generatePdf';
 import type { Bird, PdfOptions, PrintItem } from './types';
-
-const customBirdsStorageKey = 'brasil-aves-livres.customBirds';
 
 const initialOptions: PdfOptions = {
   title: 'BRASIL AVES LIVRES',
@@ -12,45 +25,13 @@ const initialOptions: PdfOptions = {
   showPageNumbers: true,
 };
 
-function normalizeSearch(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
-}
-
-function wikiSlug(value: string) {
-  return normalizeSearch(value).replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
-
-function likelyWikiAvesUrl(value: string) {
-  const slug = wikiSlug(value);
-  return slug ? `https://www.wikiaves.com.br/wiki/${slug}` : 'https://www.wikiaves.com.br/';
-}
-
-function titleCaseBirdName(value: string) {
-  const normalized = value.trim().replace(/\s+/g, '-').toLocaleLowerCase('pt-BR');
-  if (!normalized) return '';
-  return normalized.charAt(0).toLocaleUpperCase('pt-BR') + normalized.slice(1);
-}
-
-function loadCustomBirds(): Bird[] {
-  try {
-    const stored = localStorage.getItem(customBirdsStorageKey);
-    return stored ? (JSON.parse(stored) as Bird[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveCustomBirds(birds: Bird[]) {
-  localStorage.setItem(customBirdsStorageKey, JSON.stringify(birds, null, 2));
-}
-
 function App() {
   const [query, setQuery] = useState('');
   const [customBirds, setCustomBirds] = useState<Bird[]>(loadCustomBirds);
+  const [supabaseBirds, setSupabaseBirds] = useState<Bird[]>([]);
+  const [catalogStatus, setCatalogStatus] = useState(
+    isSupabaseConfigured ? 'Conectando ao Supabase...' : 'Usando base local. Configure o Supabase para compartilhar aves.',
+  );
   const [items, setItems] = useState<PrintItem[]>([]);
   const [options, setOptions] = useState<PdfOptions>(initialOptions);
   const [manualName, setManualName] = useState('');
@@ -59,7 +40,32 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState('');
 
-  const catalog = useMemo(() => [...birdCatalog, ...customBirds], [customBirds]);
+  const catalog = useMemo(
+    () => mergeBirdCatalogs(birdCatalog, customBirds, supabaseBirds),
+    [customBirds, supabaseBirds],
+  );
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    let isMounted = true;
+
+    fetchSupabaseBirds()
+      .then((birds) => {
+        if (!isMounted) return;
+        setSupabaseBirds(birds);
+        setCatalogStatus(`Supabase conectado: ${birds.length} aves compartilhadas.`);
+      })
+      .catch((error: unknown) => {
+        if (!isMounted) return;
+        const reason = error instanceof Error ? error.message : 'erro desconhecido';
+        setCatalogStatus(`Supabase indisponivel; usando fallback local. ${reason}`);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredBirds = useMemo(() => {
     const term = normalizeSearch(query);
@@ -73,6 +79,18 @@ function App() {
     });
   }, [catalog, query]);
 
+  useEffect(() => {
+    if (!isSupabaseConfigured || !query.trim()) return;
+
+    const timeout = window.setTimeout(() => {
+      recordSupabaseSearch(query, filteredBirds.length > 0).catch(() => {
+        // Search analytics should never interrupt the PDF workflow.
+      });
+    }, 800);
+
+    return () => window.clearTimeout(timeout);
+  }, [filteredBirds.length, query]);
+
   const selectedBirds = useMemo(() => {
     const byId = new Map(catalog.map((bird) => [bird.id, bird]));
     return items
@@ -81,13 +99,13 @@ function App() {
   }, [catalog, items]);
 
   const totalCopies = selectedBirds.reduce((total, entry) => total + entry.item.copies, 0);
-  const suggestedName = titleCaseBirdName(query);
+  const suggestedName = formatPopularName(query);
   const suggestedUrl = likelyWikiAvesUrl(query);
   const canAddManualBird = Boolean(manualName.trim() && manualUrl.trim() && wikiSearchValidatedFor === manualUrl.trim());
 
   function handleQueryChange(value: string) {
     setQuery(value);
-    const nextName = titleCaseBirdName(value);
+    const nextName = formatPopularName(value);
     const nextUrl = likelyWikiAvesUrl(value);
     setManualName(nextName);
     setManualUrl(nextUrl);
@@ -106,7 +124,7 @@ function App() {
     setMessage(`${bird.nomePopular} adicionada ao PDF.`);
   }
 
-  function addManualBird() {
+  async function addManualBird() {
     const name = manualName.trim() || query.trim();
     const url = manualUrl.trim();
 
@@ -121,19 +139,38 @@ function App() {
     }
 
     const existingBird = catalog.find((bird) => normalizeSearch(bird.url) === normalizeSearch(url));
-    const bird: Bird = existingBird ?? {
+    let bird: Bird = existingBird ?? {
       id: `manual-${wikiSlug(name) || crypto.randomUUID()}`,
       nomePopular: name,
       url,
+      fonte: 'manual',
+      validado: true,
       atualizadoEm: new Date().toISOString().slice(0, 10),
     };
 
     if (!existingBird) {
-      setCustomBirds((current) => {
-        const next = [...current, bird];
-        saveCustomBirds(next);
-        return next;
-      });
+      if (isSupabaseConfigured) {
+        try {
+          bird = await saveSupabaseBird(bird);
+          setSupabaseBirds((current) => mergeBirdCatalogs(current, [bird]));
+          setMessage(`${bird.nomePopular} adicionada ao PDF e salva no Supabase.`);
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : 'erro desconhecido';
+          setCustomBirds((current) => {
+            const next = mergeBirdCatalogs(current, [bird]);
+            saveCustomBirds(next);
+            return next;
+          });
+          setMessage(`${bird.nomePopular} salva localmente; Supabase falhou: ${reason}`);
+        }
+      } else {
+        setCustomBirds((current) => {
+          const next = mergeBirdCatalogs(current, [bird]);
+          saveCustomBirds(next);
+          return next;
+        });
+        setMessage(`${bird.nomePopular} adicionada ao PDF e salva na base JSON local.`);
+      }
     }
 
     setItems((current) => [
@@ -146,11 +183,9 @@ function App() {
     ]);
     setManualName('');
     setManualUrl('');
-    setMessage(
-      existingBird
-        ? `${bird.nomePopular} ja estava na base e foi adicionada ao PDF.`
-        : `${bird.nomePopular} adicionada ao PDF e salva na base JSON local.`,
-    );
+    if (existingBird) {
+      setMessage(`${bird.nomePopular} ja estava na base e foi adicionada ao PDF.`);
+    }
   }
 
   function removeItem(instanceId: string) {
@@ -177,6 +212,9 @@ function App() {
       setIsGenerating(true);
       setMessage('');
       await generateBirdPdf(catalog, items, options);
+      recordSupabasePdf(options.title, totalCopies).catch(() => {
+        // PDF analytics are best-effort only.
+      });
       setMessage('PDF gerado no navegador.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Nao foi possivel gerar o PDF.');
@@ -191,6 +229,7 @@ function App() {
         <div>
           <p className="eyebrow">Gerador de QR Codes</p>
           <h1>Brasil Aves Livres</h1>
+          <p className="catalog-status">{catalogStatus}</p>
         </div>
         <div className="topbar-stats" aria-label="Resumo da montagem">
           <span>{catalog.length} aves</span>
