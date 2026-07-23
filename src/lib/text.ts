@@ -15,6 +15,11 @@ export function likelyWikiAvesUrl(value: string) {
   return slug ? `https://www.wikiaves.com.br/wiki/${slug}` : 'https://www.wikiaves.com.br/';
 }
 
+export function wikiAvesSearchUrl(value: string) {
+  const query = encodeURIComponent(value.trim());
+  return query ? `https://www.wikiaves.com.br/direcionarbusca.php?q=${query}` : 'https://www.wikiaves.com.br/';
+}
+
 export function formatPopularName(value: string) {
   const normalized = value.trim().replace(/\s+/g, '-').toLocaleLowerCase('pt-BR');
   if (!normalized) return '';

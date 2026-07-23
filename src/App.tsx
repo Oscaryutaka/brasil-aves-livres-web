@@ -13,10 +13,11 @@ import {
   formatPopularName,
   likelyWikiAvesUrl,
   normalizeSearch,
+  wikiAvesSearchUrl,
   wikiSlug,
 } from './lib/text';
 import { generateBirdPdf } from './pdf/generatePdf';
-import type { Bird, PdfOptions, PrintItem } from './types';
+import type { Bird, PdfOptions, PrintItem, SpeechRecognitionConstructor, SpeechRecognitionEventLike } from './types';
 
 const initialOptions: PdfOptions = {
   title: 'BRASIL AVES LIVRES',
@@ -29,6 +30,13 @@ type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 };
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  }
+}
 
 function App() {
   const [query, setQuery] = useState('');
@@ -46,6 +54,7 @@ function App() {
   const [message, setMessage] = useState('');
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(() => window.matchMedia('(display-mode: standalone)').matches);
+  const [isListening, setIsListening] = useState(false);
 
   const catalog = useMemo(
     () => mergeBirdCatalogs(birdCatalog, customBirds, supabaseBirds),
@@ -131,8 +140,10 @@ function App() {
     .slice(0, 12);
   const suggestedName = formatPopularName(query);
   const suggestedUrl = likelyWikiAvesUrl(query);
+  const suggestedSearchUrl = wikiAvesSearchUrl(query);
   const canAddManualBird = Boolean(manualName.trim() && manualUrl.trim() && wikiSearchValidatedFor === manualUrl.trim());
   const hasQuery = Boolean(query.trim());
+  const supportsVoiceSearch = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
 
   function handleQueryChange(value: string) {
     setQuery(value);
@@ -141,6 +152,40 @@ function App() {
     setManualName(nextName);
     setManualUrl(nextUrl);
     setWikiSearchValidatedFor('');
+  }
+
+  function handleVoiceSearch() {
+    const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+
+    if (!Recognition) {
+      setMessage('Pesquisa por voz nao esta disponivel neste navegador.');
+      return;
+    }
+
+    const recognition = new Recognition();
+    recognition.lang = 'pt-BR';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: SpeechRecognitionEventLike) => {
+      const transcript = event.results[0]?.[0]?.transcript?.trim();
+      if (transcript) {
+        handleQueryChange(transcript);
+        setMessage(`Busca por voz: ${transcript}`);
+      }
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      setMessage('Nao foi possivel ouvir agora. Tente novamente ou digite o nome.');
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    setIsListening(true);
+    recognition.start();
   }
 
   function addBird(bird: Bird) {
@@ -306,6 +351,15 @@ function App() {
               onChange={(event) => handleQueryChange(event.target.value)}
               placeholder="Ex.: curicaca, sabiá, tucano"
             />
+            <button
+              className={isListening ? 'voice-button listening' : 'voice-button'}
+              type="button"
+              onClick={handleVoiceSearch}
+              disabled={!supportsVoiceSearch || isListening}
+              title={supportsVoiceSearch ? 'Pesquisar usando microfone' : 'Microfone indisponivel neste navegador'}
+            >
+              {isListening ? 'Ouvindo...' : 'Microfone'}
+            </button>
           </label>
           {message ? <p className="status-message search-status-message">{message}</p> : null}
 
@@ -343,17 +397,22 @@ function App() {
             {hasQuery ? <div className="wiki-fallback">
               <strong>{filteredBirds.length === 0 ? 'Nenhuma ave encontrada.' : 'Nao encontrou a ave exata?'}</strong>
               <span>
-                Abra a pagina provavel no WikiAves, confira a URL e adicione como item novo. Isso permite cadastrar
-                "tucano" mesmo que exista "tucano-toco" na base local.
+                Abra a pagina provavel ou a busca do WikiAves, confira a URL e adicione como item novo. Isso permite
+                cadastrar "tucano" mesmo que exista "tucano-toco" na base local.
               </span>
-              <a
-                href={manualUrl || suggestedUrl}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => setWikiSearchValidatedFor((manualUrl || suggestedUrl).trim())}
-              >
-                Buscar no WikiAves
-              </a>
+              <div className="wiki-actions">
+                <a
+                  href={manualUrl || suggestedUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setWikiSearchValidatedFor((manualUrl || suggestedUrl).trim())}
+                >
+                  Abrir pagina provavel
+                </a>
+                <a href={suggestedSearchUrl} target="_blank" rel="noreferrer">
+                  Abrir busca WikiAves
+                </a>
+              </div>
               <label className="field compact-field">
                 <span>Nome da ave</span>
                 <input

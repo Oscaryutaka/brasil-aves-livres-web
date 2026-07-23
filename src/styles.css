@@ -154,6 +154,25 @@ input:focus {
   box-shadow: 0 0 0 3px rgba(61, 111, 99, 0.16);
 }
 
+.voice-button {
+  border: 1px solid #c9bdab;
+  background: #f8f4eb;
+  color: #254f45;
+  border-radius: 5px;
+  padding: 9px 11px;
+  font-weight: 900;
+}
+
+.voice-button.listening {
+  background: #254f45;
+  color: #ffffff;
+}
+
+.voice-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .result-list,
 .selected-list {
   display: grid;
@@ -345,6 +364,12 @@ input:focus {
   text-decoration: none;
 }
 
+.wiki-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .wiki-fallback button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -495,6 +520,10 @@ input:focus {
 
   .selected-row {
     grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .wiki-actions {
+    grid-template-columns: 1fr;
   }
 
   .copies-control,
