@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { birdCatalog } from './data/birds';
 import { mergeBirdCatalogs } from './lib/birds';
 import { loadCustomBirds, saveCustomBirds } from './lib/localBirds';
@@ -55,6 +55,8 @@ function App() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(() => window.matchMedia('(display-mode: standalone)').matches);
   const [isListening, setIsListening] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const builderPanelRef = useRef<HTMLElement | null>(null);
 
   const catalog = useMemo(
     () => mergeBirdCatalogs(birdCatalog, customBirds, supabaseBirds),
@@ -102,6 +104,13 @@ function App() {
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
+
+  useEffect(() => {
+    if (!toastMessage) return;
+
+    const timeout = window.setTimeout(() => setToastMessage(''), 2800);
+    return () => window.clearTimeout(timeout);
+  }, [toastMessage]);
 
   const filteredBirds = useMemo(() => {
     const term = normalizeSearch(query);
@@ -198,7 +207,15 @@ function App() {
         copies: 1,
       },
     ]);
-    setMessage(`${bird.nomePopular} adicionada ao PDF.`);
+    announceAddedBird(bird.nomePopular);
+  }
+
+  function announceAddedBird(name: string) {
+    setMessage(`${name} adicionada ao PDF.`);
+    setToastMessage(`${name} foi para a montagem.`);
+    window.setTimeout(() => {
+      builderPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
   }
 
   async function addManualBird() {
@@ -230,7 +247,7 @@ function App() {
         try {
           bird = await saveSupabaseBird(bird);
           setSupabaseBirds((current) => mergeBirdCatalogs(current, [bird]));
-          setMessage(`${bird.nomePopular} adicionada ao PDF e salva no Supabase.`);
+          setToastMessage(`${bird.nomePopular} salva no Supabase e adicionada.`);
         } catch (error) {
           const reason = error instanceof Error ? error.message : 'erro desconhecido';
           setCustomBirds((current) => {
@@ -246,7 +263,7 @@ function App() {
           saveCustomBirds(next);
           return next;
         });
-        setMessage(`${bird.nomePopular} adicionada ao PDF e salva na base JSON local.`);
+        setToastMessage(`${bird.nomePopular} salva localmente e adicionada.`);
       }
     }
 
@@ -264,6 +281,7 @@ function App() {
     if (existingBird) {
       setMessage(`${bird.nomePopular} ja estava na base e foi adicionada ao PDF.`);
     }
+    announceAddedBird(bird.nomePopular);
   }
 
   function removeItem(instanceId: string) {
@@ -447,7 +465,7 @@ function App() {
           </div>
         </aside>
 
-        <section className="panel builder-panel">
+        <section className="panel builder-panel" ref={builderPanelRef}>
           <div className="section-heading">
             <h2>Montagem do PDF</h2>
             <p>Ordene, repita e misture aves antes de exportar.</p>
@@ -554,6 +572,7 @@ function App() {
 
         </aside>
       </section>
+      {toastMessage ? <div className="toast-message" role="status">{toastMessage}</div> : null}
     </main>
   );
 }
