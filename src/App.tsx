@@ -320,20 +320,25 @@ function App() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div>
-          <p className="eyebrow">Gerador de QR Codes</p>
-          <h1>Brasil Aves Livres</h1>
-          <p className="catalog-status">{catalogStatus}</p>
+        <div className="brand-lockup">
+          <img className="brand-logo" src="/logoBAL.png" alt="Brasil Aves Livres" />
+          <div>
+            <p className="eyebrow">Gerador de QR Codes</p>
+            <h1>Brasil Aves Livres</h1>
+          </div>
         </div>
-        <div className="topbar-stats" aria-label="Resumo da montagem">
-          <span>{catalog.length} aves</span>
-          <span>{items.length} itens</span>
-          <span>{totalCopies} qtde.</span>
-          {!isInstalled ? (
-            <button className="install-action" type="button" onClick={handleInstallApp}>
-              Instalar app
-            </button>
-          ) : null}
+        <div className="topbar-side">
+          <p className="catalog-status">{catalogStatus}</p>
+          <div className="topbar-stats" aria-label="Resumo da montagem">
+            <span>{catalog.length} aves</span>
+            <span>{items.length} itens</span>
+            <span>{totalCopies} qtde.</span>
+            {!isInstalled ? (
+              <button className="install-action" type="button" onClick={handleInstallApp}>
+                Instalar app
+              </button>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -344,7 +349,7 @@ function App() {
             <p>Busque no catálogo compartilhado ou adicione uma URL validada do WikiAves.</p>
           </div>
 
-          <label className="field">
+          <label className="field search-field">
             <span>Nome</span>
             <input
               value={query}
