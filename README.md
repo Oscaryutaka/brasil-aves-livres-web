@@ -65,6 +65,9 @@ VITE_SUPABASE_ANON_KEY=sua-chave-anon-public
 ```
 
 No Vercel, configure as mesmas variaveis em Project Settings > Environment Variables.
+Se usar a integracao Supabase da Vercel, o app tambem aceita `NEXT_PUBLIC_SUPABASE_URL`
+e `NEXT_PUBLIC_SUPABASE_ANON_KEY`, que sao os nomes criados automaticamente pelo plugin.
+Nao use `SUPABASE_SECRET_KEY` ou `SUPABASE_SERVICE_ROLE_KEY` no frontend.
 
 ## Publicacao gratuita
 
