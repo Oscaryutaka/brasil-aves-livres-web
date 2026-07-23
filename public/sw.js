@@ -1,5 +1,5 @@
 const CACHE_NAME = 'brasil-aves-livres-v1';
-const APP_SHELL = ['/', '/manifest.webmanifest', '/icon.svg'];
+const APP_SHELL = ['/', '/manifest.webmanifest', '/icon-32.png', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
