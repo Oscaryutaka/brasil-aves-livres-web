@@ -59,10 +59,13 @@ export async function generateBirdPdf(
 
 function expandItems(catalog: Bird[], items: PrintItem[]): RenderEntry[] {
   const catalogById = new Map(catalog.map((bird) => [bird.id, bird]));
+  const catalogByUrl = new Map(catalog.map((bird) => [bird.url, bird]));
   const entries: RenderEntry[] = [];
 
   for (const item of items) {
-    const bird = item.customBird ?? catalogById.get(item.birdId);
+    const bird = item.customBird
+      ? catalogByUrl.get(item.customBird.url) ?? catalogById.get(item.birdId) ?? item.customBird
+      : catalogById.get(item.birdId);
     if (!bird) continue;
 
     for (let i = 0; i < Math.max(1, item.copies); i += 1) {

@@ -122,6 +122,7 @@ function App() {
       {
         instanceId: crypto.randomUUID(),
         birdId: bird.id,
+        customBird: bird,
         copies: 1,
       },
     ]);
@@ -182,6 +183,7 @@ function App() {
       {
         instanceId: crypto.randomUUID(),
         birdId: bird.id,
+        customBird: bird,
         copies: 1,
       },
     ]);
