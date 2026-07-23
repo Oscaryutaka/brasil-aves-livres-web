@@ -178,14 +178,55 @@ input:focus {
   gap: 3px;
 }
 
+.bird-row-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .bird-row strong,
 .selected-copy strong {
   font-size: 0.98rem;
 }
 
-.bird-row em {
+.bird-row em,
+.selected-copy em {
   color: #58635e;
   font-size: 0.86rem;
+}
+
+.bird-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.bird-meta span,
+.status-pill {
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.bird-meta span {
+  background: #f2eee5;
+  color: #655746;
+}
+
+.status-pill {
+  white-space: nowrap;
+}
+
+.status-pill.valid {
+  background: #e2f1e6;
+  color: #245640;
+}
+
+.status-pill.pending {
+  background: #fff1d6;
+  color: #765321;
 }
 
 .bird-row small,
@@ -259,6 +300,10 @@ input:focus {
 
 .empty-state strong {
   color: #29323b;
+}
+
+.compact-empty {
+  min-height: 150px;
 }
 
 .wiki-fallback {
@@ -337,6 +382,42 @@ input:focus {
 
 .fixed-layout-note strong {
   color: #254f45;
+}
+
+.sheet-preview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  aspect-ratio: 210 / 297;
+  margin-bottom: 14px;
+  border: 1px solid #d6cbbb;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.sheet-cell {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  border: 1px dashed #d5cbbb;
+  color: #c0b39f;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.sheet-cell.filled {
+  border-style: solid;
+  background: #eef4ec;
+  color: #254f45;
+}
+
+.sheet-cell span {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .check-row {

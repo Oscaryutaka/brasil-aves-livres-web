@@ -99,9 +99,13 @@ function App() {
   }, [catalog, items]);
 
   const totalCopies = selectedBirds.reduce((total, entry) => total + entry.item.copies, 0);
+  const previewCells = selectedBirds
+    .flatMap(({ item, bird }) => Array.from({ length: Math.max(0, item.copies) }, () => bird.nomePopular))
+    .slice(0, 12);
   const suggestedName = formatPopularName(query);
   const suggestedUrl = likelyWikiAvesUrl(query);
   const canAddManualBird = Boolean(manualName.trim() && manualUrl.trim() && wikiSearchValidatedFor === manualUrl.trim());
+  const hasQuery = Boolean(query.trim());
 
   function handleQueryChange(value: string) {
     setQuery(value);
@@ -242,7 +246,7 @@ function App() {
         <aside className="panel search-panel">
           <div className="section-heading">
             <h2>Buscar ave</h2>
-            <p>Base local com URLs do WikiAves.</p>
+            <p>Busque no catálogo compartilhado ou adicione uma URL validada do WikiAves.</p>
           </div>
 
           <label className="field">
@@ -256,10 +260,27 @@ function App() {
           {message ? <p className="status-message search-status-message">{message}</p> : null}
 
           <div className="result-list">
+            {!hasQuery ? (
+              <div className="empty-state compact-empty">
+                <strong>Digite para buscar.</strong>
+                <span>Resultados e cadastro manual aparecem depois do primeiro termo.</span>
+              </div>
+            ) : null}
+
             {filteredBirds.map((bird) => (
               <article className="bird-row" key={bird.id}>
                 <div>
-                  <strong>{bird.nomePopular}</strong>
+                  <div className="bird-row-title">
+                    <strong>{bird.nomePopular}</strong>
+                    <span className={bird.validado ? 'status-pill valid' : 'status-pill pending'}>
+                      {bird.validado ? 'validada' : 'pendente'}
+                    </span>
+                  </div>
+                  <div className="bird-meta">
+                    {bird.familia ? <span>{bird.familia}</span> : null}
+                    {bird.totalFotos !== undefined ? <span>{bird.totalFotos} fotos</span> : null}
+                    {bird.totalSons !== undefined ? <span>{bird.totalSons} sons</span> : null}
+                  </div>
                   {bird.nomeCientifico ? <em>{bird.nomeCientifico}</em> : null}
                   <small>{bird.url}</small>
                 </div>
@@ -269,7 +290,7 @@ function App() {
               </article>
             ))}
 
-            <div className="wiki-fallback">
+            {hasQuery ? <div className="wiki-fallback">
               <strong>{filteredBirds.length === 0 ? 'Nenhuma ave encontrada.' : 'Nao encontrou a ave exata?'}</strong>
               <span>
                 Abra a pagina provavel no WikiAves, confira a URL e adicione como item novo. Isso permite cadastrar
@@ -308,7 +329,7 @@ function App() {
               <button type="button" onClick={addManualBird} disabled={!canAddManualBird}>
                 Adicionar como nova ave
               </button>
-            </div>
+            </div> : null}
           </div>
         </aside>
 
@@ -330,6 +351,7 @@ function App() {
                   <div className="selected-index">{index + 1}</div>
                   <div className="selected-copy">
                     <strong>{bird.nomePopular}</strong>
+                    {bird.nomeCientifico ? <em>{bird.nomeCientifico}</em> : null}
                     <small>{bird.url}</small>
                   </div>
                   <label className="copies-control">
@@ -371,6 +393,14 @@ function App() {
           <div className="fixed-layout-note">
             <strong>12 etiquetas por pagina</strong>
             <span>Quantidade e ordem sao controladas pela lista de montagem.</span>
+          </div>
+
+          <div className="sheet-preview" aria-label="Previa da primeira pagina do PDF">
+            {Array.from({ length: 12 }).map((_, index) => (
+              <div className={previewCells[index] ? 'sheet-cell filled' : 'sheet-cell'} key={index}>
+                <span>{previewCells[index] ?? index + 1}</span>
+              </div>
+            ))}
           </div>
 
           <label className="check-row">
