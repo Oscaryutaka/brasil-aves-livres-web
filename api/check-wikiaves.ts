@@ -1,39 +1,37 @@
 import { validateWikiAvesName } from '../src/lib/wikiAvesValidation';
 
-type ApiRequest = {
-  method?: string;
-  query: Record<string, string | string[] | undefined>;
+const RESPONSE_HEADERS = {
+  'Cache-Control': 's-maxage=3600, stale-while-revalidate=86400',
+  'Content-Type': 'application/json; charset=utf-8',
 };
 
-type ApiResponse = {
-  status: (statusCode: number) => ApiResponse;
-  setHeader: (name: string, value: string) => void;
-  json: (body: unknown) => void;
+export default {
+  async fetch(request: Request) {
+    if (request.method !== 'GET') {
+      return Response.json(
+        { message: 'Metodo nao permitido.' },
+        { status: 405, headers: RESPONSE_HEADERS },
+      );
+    }
+
+    const name = new URL(request.url).searchParams.get('name')?.trim();
+
+    if (!name || name.length > 120) {
+      return Response.json(
+        { message: 'Informe um nome de ave valido.' },
+        { status: 400, headers: RESPONSE_HEADERS },
+      );
+    }
+
+    try {
+      const result = await validateWikiAvesName(name);
+      return Response.json(result, { status: 200, headers: RESPONSE_HEADERS });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'erro desconhecido';
+      return Response.json(
+        { message: `Nao foi possivel confirmar a pagina no WikiAves. ${reason}` },
+        { status: 502, headers: RESPONSE_HEADERS },
+      );
+    }
+  },
 };
-
-export default async function handler(request: ApiRequest, response: ApiResponse) {
-  response.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
-
-  if (request.method && request.method !== 'GET') {
-    response.status(405).json({ message: 'Metodo nao permitido.' });
-    return;
-  }
-
-  const rawName = request.query.name;
-  const name = Array.isArray(rawName) ? rawName[0] : rawName;
-
-  if (!name?.trim() || name.length > 120) {
-    response.status(400).json({ message: 'Informe um nome de ave valido.' });
-    return;
-  }
-
-  try {
-    const result = await validateWikiAvesName(name);
-    response.status(200).json(result);
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : 'erro desconhecido';
-    response.status(502).json({
-      message: `Nao foi possivel confirmar a pagina no WikiAves. ${reason}`,
-    });
-  }
-}
