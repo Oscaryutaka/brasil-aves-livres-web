@@ -3,15 +3,6 @@ const RESPONSE_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
 };
 
-const NOT_FOUND_HEADINGS = [
-  'esse topico ainda nao existe',
-  'este topico ainda nao existe',
-  'pagina nao encontrada',
-  'pagina nao foi encontrada',
-  'nao encontrado',
-  'nao foi encontrado',
-];
-
 export default {
   async fetch(request) {
     if (request.method !== 'GET') {
@@ -50,24 +41,29 @@ async function validateWikiAvesName(name) {
   const timeout = setTimeout(() => timeoutController.abort(), 10_000);
 
   try {
-    const response = await fetch(url, {
+    const searchUrl = new URL('https://www.wikiaves.com.br/getTaxonsJSON.php');
+    searchUrl.searchParams.set('term', name);
+    const response = await fetch(searchUrl, {
       headers: {
-        Accept: 'text/html,application/xhtml+xml',
+        Accept: 'application/json,text/plain,*/*',
         'Accept-Language': 'pt-BR,pt;q=0.9',
+        Referer: 'https://www.wikiaves.com.br/',
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128.0 Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest',
       },
       redirect: 'follow',
       signal: timeoutController.signal,
     });
 
-    if (response.status === 404) return { found: false, url };
     if (!response.ok) throw new Error(`O WikiAves respondeu com o status ${response.status}.`);
 
-    const html = await response.text();
+    const taxons = JSON.parse(await response.text());
+    const match = findExactSpecies(taxons, name);
     return {
-      found: isExistingWikiAvesPage(html),
-      url: isWikiAvesPageUrl(response.url) ? response.url : url,
+      found: Boolean(match),
+      url: match?.wid ? `https://www.wikiaves.com.br/wiki/${match.wid}` : url,
+      canonicalName: match?.nome ? formatPopularName(match.nome) : undefined,
     };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
@@ -80,47 +76,45 @@ async function validateWikiAvesName(name) {
 }
 
 function likelyWikiAvesUrl(value) {
-  const slug = value
+  return `https://www.wikiaves.com.br/wiki/${wikiSlug(value)}`;
+}
+
+function wikiSlug(value) {
+  return value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
-  return `https://www.wikiaves.com.br/wiki/${slug}`;
 }
 
-function isExistingWikiAvesPage(html) {
-  if (/\bnotFound\b/i.test(html)) return false;
-
-  const headings = [...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)].map((match) =>
-    normalizeHtmlText(match[1]),
-  );
-
-  if (headings.some((heading) => NOT_FOUND_HEADINGS.some((phrase) => heading.includes(phrase)))) {
-    return false;
-  }
-
-  return /id=["']dokuwiki__content["']/i.test(html) && headings.length > 0;
-}
-
-function normalizeHtmlText(value) {
+function normalizeSearch(value) {
   return value
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;|&#160;/gi, ' ')
-    .replace(/&[a-z]+;|&#\d+;/gi, ' ')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/\s+/g, ' ')
     .trim();
 }
 
-function isWikiAvesPageUrl(value) {
-  try {
-    const parsed = new URL(value);
-    return parsed.hostname === 'www.wikiaves.com.br' && parsed.pathname.startsWith('/wiki/');
-  } catch {
-    return false;
-  }
+function formatPopularName(value) {
+  const normalized = value.trim().replace(/\s+/g, '-').toLocaleLowerCase('pt-BR');
+  return normalized.charAt(0).toLocaleUpperCase('pt-BR') + normalized.slice(1);
+}
+
+function findExactSpecies(taxons, name) {
+  if (!Array.isArray(taxons)) return undefined;
+  const requestedSlug = wikiSlug(name);
+  const requestedName = normalizeSearch(name);
+
+  return taxons.find((taxon) => {
+    const isSpecies = taxon?.sp === 1 || taxon?.sp === '1';
+    if (!isSpecies || !taxon.wid) return false;
+
+    return (
+      wikiSlug(taxon.wid) === requestedSlug ||
+      (taxon.nome && wikiSlug(taxon.nome) === requestedSlug) ||
+      (taxon.label && normalizeSearch(taxon.label) === requestedName)
+    );
+  });
 }

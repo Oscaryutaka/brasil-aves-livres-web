@@ -254,9 +254,10 @@ function App() {
       const existingBird = catalog.find(
         (bird) => normalizeSearch(bird.url) === normalizeSearch(validation.url),
       );
+      const verifiedName = validation.canonicalName || name;
       let bird: Bird = existingBird ?? {
-        id: `manual-${wikiSlug(name) || crypto.randomUUID()}`,
-        nomePopular: name,
+        id: `manual-${wikiSlug(verifiedName) || crypto.randomUUID()}`,
+        nomePopular: verifiedName,
         url: validation.url,
         fonte: 'manual',
         validado: true,
