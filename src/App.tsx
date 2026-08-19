@@ -11,11 +11,11 @@ import {
 } from './lib/supabaseBirds';
 import {
   formatPopularName,
-  likelyWikiAvesUrl,
   normalizeSearch,
   wikiAvesSearchUrl,
   wikiSlug,
 } from './lib/text';
+import { checkWikiAvesBird } from './lib/wikiAvesClient';
 import { generateBirdPdf } from './pdf/generatePdf';
 import type { Bird, PdfOptions, PrintItem, SpeechRecognitionConstructor, SpeechRecognitionEventLike } from './types';
 
@@ -47,9 +47,8 @@ function App() {
   );
   const [items, setItems] = useState<PrintItem[]>([]);
   const [options, setOptions] = useState<PdfOptions>(initialOptions);
-  const [manualName, setManualName] = useState('');
-  const [manualUrl, setManualUrl] = useState('');
-  const [wikiSearchValidatedFor, setWikiSearchValidatedFor] = useState('');
+  const [isAddingNewBird, setIsAddingNewBird] = useState(false);
+  const [addFeedback, setAddFeedback] = useState<{ query: string; text: string } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState('');
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -57,6 +56,7 @@ function App() {
   const [isListening, setIsListening] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const builderPanelRef = useRef<HTMLElement | null>(null);
+  const addRequestRef = useRef<AbortController | null>(null);
 
   const catalog = useMemo(
     () => mergeBirdCatalogs(birdCatalog, customBirds, supabaseBirds),
@@ -112,15 +112,19 @@ function App() {
     return () => window.clearTimeout(timeout);
   }, [toastMessage]);
 
+  useEffect(() => () => addRequestRef.current?.abort(), []);
+
   const filteredBirds = useMemo(() => {
     const term = normalizeSearch(query);
     if (!term) return [];
+    const termSlug = wikiSlug(query);
 
     return catalog.filter((bird) => {
       const haystack = normalizeSearch(
         [bird.nomePopular, bird.nomeCientifico, bird.url, bird.tags?.join(' ')].filter(Boolean).join(' '),
       );
-      return haystack.includes(term);
+      const nameSlug = wikiSlug(bird.nomePopular);
+      return haystack.includes(term) || Boolean(termSlug && nameSlug.includes(termSlug));
     });
   }, [catalog, query]);
 
@@ -148,19 +152,24 @@ function App() {
     .flatMap(({ item, bird }) => Array.from({ length: Math.max(0, item.copies) }, () => bird.nomePopular))
     .slice(0, 12);
   const suggestedName = formatPopularName(query);
-  const suggestedUrl = likelyWikiAvesUrl(query);
   const suggestedSearchUrl = wikiAvesSearchUrl(query);
-  const canAddManualBird = Boolean(manualName.trim() && manualUrl.trim() && wikiSearchValidatedFor === manualUrl.trim());
   const hasQuery = Boolean(query.trim());
+  const hasExactMatch = catalog.some((bird) => {
+    const term = normalizeSearch(query);
+    return (
+      wikiSlug(bird.nomePopular) === wikiSlug(query) ||
+      Boolean(bird.nomeCientifico && normalizeSearch(bird.nomeCientifico) === term)
+    );
+  });
   const supportsVoiceSearch = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
 
   function handleQueryChange(value: string) {
+    addRequestRef.current?.abort();
+    addRequestRef.current = null;
+    setIsAddingNewBird(false);
+    setAddFeedback(null);
+    setMessage('');
     setQuery(value);
-    const nextName = formatPopularName(value);
-    const nextUrl = likelyWikiAvesUrl(value);
-    setManualName(nextName);
-    setManualUrl(nextUrl);
-    setWikiSearchValidatedFor('');
   }
 
   function handleVoiceSearch() {
@@ -218,70 +227,99 @@ function App() {
     }, 80);
   }
 
-  async function addManualBird() {
-    const name = manualName.trim() || query.trim();
-    const url = manualUrl.trim();
+  async function addNewBird() {
+    const requestedQuery = query.trim();
+    const name = formatPopularName(requestedQuery);
 
-    if (!name || !url) {
-      setMessage('Informe o nome da ave e a URL do WikiAves.');
-      return;
-    }
+    if (!name || isAddingNewBird) return;
 
-    if (wikiSearchValidatedFor !== url) {
-      setMessage('Clique em Buscar no WikiAves e confira se o link existe antes de adicionar.');
-      return;
-    }
+    const controller = new AbortController();
+    addRequestRef.current?.abort();
+    addRequestRef.current = controller;
+    setIsAddingNewBird(true);
+    setAddFeedback({ query: requestedQuery, text: `Conferindo “${name}” no WikiAves...` });
 
-    const existingBird = catalog.find((bird) => normalizeSearch(bird.url) === normalizeSearch(url));
-    let bird: Bird = existingBird ?? {
-      id: `manual-${wikiSlug(name) || crypto.randomUUID()}`,
-      nomePopular: name,
-      url,
-      fonte: 'manual',
-      validado: true,
-      atualizadoEm: new Date().toISOString().slice(0, 10),
-    };
+    try {
+      const validation = await checkWikiAvesBird(name, controller.signal);
+      if (addRequestRef.current !== controller) return;
 
-    if (!existingBird) {
-      if (isSupabaseConfigured) {
-        try {
-          bird = await saveSupabaseBird(bird);
-          setSupabaseBirds((current) => mergeBirdCatalogs(current, [bird]));
-          setToastMessage(`${bird.nomePopular} salva no Supabase e adicionada.`);
-        } catch (error) {
-          const reason = error instanceof Error ? error.message : 'erro desconhecido';
+      if (!validation.found) {
+        setAddFeedback({
+          query: requestedQuery,
+          text: `O WikiAves não encontrou uma página para “${name}”. Confira o nome e tente novamente.`,
+        });
+        return;
+      }
+
+      const existingBird = catalog.find(
+        (bird) => normalizeSearch(bird.url) === normalizeSearch(validation.url),
+      );
+      let bird: Bird = existingBird ?? {
+        id: `manual-${wikiSlug(name) || crypto.randomUUID()}`,
+        nomePopular: name,
+        url: validation.url,
+        fonte: 'manual',
+        validado: true,
+        atualizadoEm: new Date().toISOString().slice(0, 10),
+      };
+      let savedOnlyOnDevice = false;
+
+      if (!existingBird) {
+        if (isSupabaseConfigured) {
+          try {
+            bird = await saveSupabaseBird(bird);
+            setSupabaseBirds((current) => mergeBirdCatalogs(current, [bird]));
+          } catch {
+            savedOnlyOnDevice = true;
+            setCustomBirds((current) => {
+              const next = mergeBirdCatalogs(current, [bird]);
+              saveCustomBirds(next);
+              return next;
+            });
+          }
+        } else {
           setCustomBirds((current) => {
             const next = mergeBirdCatalogs(current, [bird]);
             saveCustomBirds(next);
             return next;
           });
-          setMessage(`${bird.nomePopular} salva localmente; Supabase falhou: ${reason}`);
         }
-      } else {
-        setCustomBirds((current) => {
-          const next = mergeBirdCatalogs(current, [bird]);
-          saveCustomBirds(next);
-          return next;
-        });
-        setToastMessage(`${bird.nomePopular} salva localmente e adicionada.`);
+      }
+
+      if (addRequestRef.current !== controller) return;
+
+      setItems((current) => [
+        ...current,
+        {
+          instanceId: crypto.randomUUID(),
+          birdId: bird.id,
+          customBird: bird,
+          copies: 1,
+        },
+      ]);
+      setAddFeedback(null);
+      announceAddedBird(bird.nomePopular);
+
+      if (savedOnlyOnDevice) {
+        setToastMessage(`${bird.nomePopular} foi adicionada e ficou salva neste dispositivo.`);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      if (addRequestRef.current !== controller) return;
+
+      setAddFeedback({
+        query: requestedQuery,
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível confirmar essa página no WikiAves. Tente novamente.',
+      });
+    } finally {
+      if (addRequestRef.current === controller) {
+        addRequestRef.current = null;
+        setIsAddingNewBird(false);
       }
     }
-
-    setItems((current) => [
-      ...current,
-      {
-        instanceId: crypto.randomUUID(),
-        birdId: bird.id,
-        customBird: bird,
-        copies: 1,
-      },
-    ]);
-    setManualName('');
-    setManualUrl('');
-    if (existingBird) {
-      setMessage(`${bird.nomePopular} ja estava na base e foi adicionada ao PDF.`);
-    }
-    announceAddedBird(bird.nomePopular);
   }
 
   function removeItem(instanceId: string) {
@@ -363,12 +401,12 @@ function App() {
       <section className="workspace-grid">
         <aside className="panel search-panel">
           <div className="section-heading">
-            <h2>Buscar ave</h2>
-            <p>Busque no catálogo compartilhado ou adicione uma URL validada do WikiAves.</p>
+            <h2>Encontre uma ave</h2>
+            <p>Digite o nome. Se for uma ave nova, nós conferimos no WikiAves antes de adicionar.</p>
           </div>
 
           <label className="field search-field">
-            <span>Nome</span>
+            <span>Nome da ave</span>
             <input
               value={query}
               onChange={(event) => handleQueryChange(event.target.value)}
@@ -389,8 +427,8 @@ function App() {
           <div className="result-list">
             {!hasQuery ? (
               <div className="empty-state compact-empty">
-                <strong>Digite para buscar.</strong>
-                <span>Resultados e cadastro manual aparecem depois do primeiro termo.</span>
+                <strong>Qual ave você quer adicionar?</strong>
+                <span>Comece digitando o nome popular no campo acima.</span>
               </div>
             ) : null}
 
@@ -411,57 +449,39 @@ function App() {
                   {bird.nomeCientifico ? <em>{bird.nomeCientifico}</em> : null}
                   <small>{bird.url}</small>
                 </div>
-                <button type="button" onClick={() => addBird(bird)}>
-                  +
+                <button type="button" onClick={() => addBird(bird)} aria-label={`Adicionar ${bird.nomePopular}`}>
+                  Adicionar
                 </button>
               </article>
             ))}
 
-            {hasQuery ? <div className="wiki-fallback">
-              <strong>{filteredBirds.length === 0 ? 'Nenhuma ave encontrada.' : 'Nao encontrou a ave exata?'}</strong>
-              <span>
-                Abra a pagina provavel ou a busca do WikiAves, confira a URL e adicione como item novo. Isso permite
-                cadastrar "tucano" mesmo que exista "tucano-toco" na base local.
-              </span>
-              <div className="wiki-actions">
-                <a
-                  href={manualUrl || suggestedUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => setWikiSearchValidatedFor((manualUrl || suggestedUrl).trim())}
-                >
-                  Abrir pagina provavel
-                </a>
-                <a href={suggestedSearchUrl} target="_blank" rel="noreferrer">
-                  Abrir busca WikiAves
-                </a>
+            {hasQuery && !hasExactMatch ? (
+              <div className="add-bird-prompt">
+                <div className="add-bird-copy">
+                  <span className="new-bird-label">Não está na base</span>
+                  <strong>Adicionar “{suggestedName}”?</strong>
+                  <span>
+                    {filteredBirds.length > 0
+                      ? 'Há resultados parecidos acima, mas nenhum com esse nome exato.'
+                      : 'Não encontramos esse nome no catálogo.'}{' '}
+                    O link será verificado automaticamente.
+                  </span>
+                </div>
+                <button type="button" onClick={addNewBird} disabled={isAddingNewBird}>
+                  {isAddingNewBird ? 'Verificando...' : 'Adicionar'}
+                </button>
+                {addFeedback?.query === query.trim() ? (
+                  <div className={isAddingNewBird ? 'add-feedback checking' : 'add-feedback error'} role="status">
+                    <span>{addFeedback.text}</span>
+                    {!isAddingNewBird ? (
+                      <a href={suggestedSearchUrl} target="_blank" rel="noreferrer">
+                        Pesquisar no WikiAves
+                      </a>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
-              <label className="field compact-field">
-                <span>Nome da ave</span>
-                <input
-                  value={manualName}
-                  onChange={(event) => {
-                    setManualName(event.target.value);
-                    setWikiSearchValidatedFor('');
-                  }}
-                  placeholder={suggestedName || 'Nome popular'}
-                />
-              </label>
-              <label className="field compact-field">
-                <span>URL do WikiAves</span>
-                <input
-                  value={manualUrl}
-                  onChange={(event) => {
-                    setManualUrl(event.target.value);
-                    setWikiSearchValidatedFor('');
-                  }}
-                  placeholder={suggestedUrl}
-                />
-              </label>
-              <button type="button" onClick={addManualBird} disabled={!canAddManualBird}>
-                Adicionar como nova ave
-              </button>
-            </div> : null}
+            ) : null}
           </div>
         </aside>
 

@@ -225,7 +225,7 @@ input:focus {
 }
 
 .voice-button:disabled,
-.wiki-fallback button:disabled {
+.add-bird-prompt button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
@@ -258,7 +258,7 @@ input:focus {
 }
 
 .bird-row {
-  grid-template-columns: 1fr 38px;
+  grid-template-columns: minmax(0, 1fr) auto;
   padding: 12px;
 }
 
@@ -327,14 +327,13 @@ input:focus {
 }
 
 .bird-row button {
-  width: 38px;
-  height: 38px;
   border: 0;
-  border-radius: 50%;
+  border-radius: 9px;
   background: linear-gradient(135deg, var(--leaf), #0a5f44);
   color: #fff;
-  font-size: 1.4rem;
-  line-height: 1;
+  padding: 9px 11px;
+  font-size: 0.82rem;
+  font-weight: 900;
 }
 
 .selected-row {
@@ -397,9 +396,11 @@ input:focus {
   min-height: 150px;
 }
 
-.wiki-fallback {
+.add-bird-prompt {
   display: grid;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
   border: 1px solid #ead276;
   background: linear-gradient(180deg, #fff5bd, #fffdf6);
   border-radius: 12px;
@@ -407,16 +408,32 @@ input:focus {
   color: #554b3f;
 }
 
-.wiki-fallback strong {
+.add-bird-copy {
+  display: grid;
+  gap: 5px;
+}
+
+.add-bird-copy strong {
   color: #2f352e;
 }
 
-.wiki-fallback span {
+.add-bird-copy > span:not(.new-bird-label) {
   line-height: 1.4;
 }
 
-.wiki-fallback a,
-.wiki-fallback button {
+.new-bird-label {
+  width: fit-content;
+  border-radius: 999px;
+  background: #fff0a6;
+  color: #75580e;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.add-bird-prompt > button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -424,19 +441,36 @@ input:focus {
   border-radius: 9px;
   background: linear-gradient(135deg, var(--leaf), var(--sky));
   color: #fff;
-  padding: 10px 12px;
+  min-width: 106px;
+  padding: 11px 14px;
   font-weight: 900;
-  text-decoration: none;
 }
 
-.wiki-actions {
+.add-feedback {
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
+  border-radius: 9px;
+  padding: 10px 11px;
+  font-size: 0.86rem;
+  font-weight: 750;
 }
 
-.compact-field {
-  margin-bottom: 0;
+.add-feedback.checking {
+  background: #eef7f2;
+  color: var(--leaf-strong);
+}
+
+.add-feedback.error {
+  border: 1px solid #e7b2a2;
+  background: #fff2ec;
+  color: #873b25;
+}
+
+.add-feedback a {
+  width: fit-content;
+  color: var(--sky);
+  font-weight: 900;
 }
 
 .fixed-layout-note {
@@ -596,8 +630,12 @@ input:focus {
     grid-template-columns: 28px minmax(0, 1fr);
   }
 
-  .wiki-actions {
+  .add-bird-prompt {
     grid-template-columns: 1fr;
+  }
+
+  .add-bird-prompt > button {
+    width: 100%;
   }
 
   .copies-control,
