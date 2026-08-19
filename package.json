@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "generate:wikiaves-lookup": "node scripts/generateWikiavesLookup.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
